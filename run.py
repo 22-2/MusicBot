@@ -38,6 +38,8 @@ from musicbot.utils import (
     shutdown_loggers,
 )
 
+from keep_alive import keep_alive
+
 # protect dependency import from stopping the launcher
 try:
     from aiohttp.client_exceptions import ClientConnectorCertificateError
@@ -1105,6 +1107,7 @@ def main() -> None:
 
 if __name__ == "__main__":
     try:
+        keep_alive()
         main()
     except KeyboardInterrupt:
         print("OK, we're closing!")
