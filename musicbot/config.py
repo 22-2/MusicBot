@@ -104,10 +104,12 @@ class Config:
         """
         log.info("Loading config from:  %s", config_file)
         self.config_file = config_file
+        config = ExtendedConfigParser()  # ここで ExtendedConfigParser を初期化
+        self.config = config
         self.find_config()
 
-        config = ExtendedConfigParser()
-        config.read(config_file, encoding="utf-8")
+        # config = ExtendedConfigParser()
+        # config.read(config_file, encoding="utf-8")
         self.register = ConfigOptionRegistry(self, config)
 
         self._confpreface = "An error has occured reading the config:\n"
@@ -1702,13 +1704,18 @@ class ExtendedConfigParser(configparser.ConfigParser):
         vars: ConfVars = None,
         fallback: Any = _UNSET,
     ) -> str:
-        """Override get method to read from environment variables."""
-        print("Reading from environment variables", section, option, raw)
+        """環境変数からの読み取りを優先するように get メソッドをオーバーライド。"""
         env_var = f"{section}_{option}".upper()
         if env_var in os.environ:
+            logging.debug(f"Using environment variable for {section}.{option}: {os.environ[env_var]}")
             return os.environ[env_var]
         else:
-            return super().get(section, option, raw=raw, vars=vars, fallback=fallback)
+            if fallback is _UNSET:
+                logging.debug(f"No environment variable found for {section}.{option}, and no fallback provided.")
+                return super().get(section, option, raw=raw, vars=vars)
+            else:
+                logging.debug(f"No environment variable found for {section}.{option}, using fallback: {fallback}")
+                return super().get(section, option, raw=raw, vars=vars, fallback=fallback)
 
     def getownerid(
         self,
