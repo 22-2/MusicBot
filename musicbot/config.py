@@ -7,9 +7,11 @@ import shutil
 import sys
 from typing import (
     TYPE_CHECKING,
+    Any,
     Dict,
     Iterable,
     List,
+    Mapping,
     Optional,
     Set,
     Tuple,
@@ -1639,6 +1641,10 @@ class ConfigOptionRegistry:
 
         return str(conf_value)
 
+# 必要な型エイリアスを定義
+ConfVars = Optional[Mapping[str, Any]]
+DebugLevel = Tuple[str, int]
+_UNSET = object()
 
 class ExtendedConfigParser(configparser.ConfigParser):
     """
