@@ -1799,33 +1799,21 @@ class ExtendedConfigParser(configparser.ConfigParser):
                 preface=self.error_preface,
             ) from e
 
-    def getdebuglevel(
+    def get(
         self,
         section: str,
-        key: str,
-        fallback: str = "",
+        option: str,
+        *,
         raw: bool = False,
         vars: ConfVars = None,
-    ) -> DebugLevel:
-        """Get a config value and parse it as a logger level."""
-        val = self.get(section, key, fallback="", raw=raw, vars=vars).strip().upper()
-        if not val and fallback:
-            val = fallback.upper()
-
-        int_level = 0
-        str_level = val
-        if hasattr(logging, val):
-            int_level = getattr(logging, val)
-            return (str_level, int_level)
-
-        int_level = getattr(logging, 'INFO', logging.INFO)
-        str_level = logging.getLevelName(int_level)
-        logging.warning(
-            'Invalid DebugLevel option "%s" given, falling back to level: %s',
-            val,
-            str_level,
-        )
-        return (str_level, int_level)
+        fallback: Any = _UNSET,
+    ) -> str:
+        """Override get method to read from environment variables."""
+        env_var = f"{section}_{option}".upper()
+        if env_var in os.environ:
+            return os.environ[env_var]
+        else:
+            return super().get(section, option, raw=raw, vars=vars, fallback=fallback)
 
     def getdatasize(
         self,
