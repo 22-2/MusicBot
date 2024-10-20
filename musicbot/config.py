@@ -120,7 +120,8 @@ class Config:
             section="MusicBot",
             option="DebugLevel",
             dest="_debug_level",
-            default=ConfigDefaults._debug_level(),
+            # default=ConfigDefaults._debug_level(),
+            default=["DEBUG", logging.DEBUG],
             getter="getdebuglevel",
             comment=(
                 "Set the log verbosity of MusicBot. Normally this should be set to INFO.\n"
