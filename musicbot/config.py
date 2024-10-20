@@ -1691,6 +1691,7 @@ class ExtendedConfigParser(configparser.ConfigParser):
         fallback: Any = _UNSET,
     ) -> str:
         """Override get method to read from environment variables."""
+        print("Reading from environment variables", section, option, raw)
         env_var = f"{section}_{option}".upper()
         if env_var in os.environ:
             return os.environ[env_var]
