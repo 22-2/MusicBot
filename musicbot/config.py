@@ -951,28 +951,25 @@ class Config:
 
     def find_config(self) -> None:
         """
-        Handle locating or initializing a config file, using a previously set
-        config file path.
-        If the config file is not found, this will check for a file with `.ini` suffix.
-        If neither of the above are found, this will attempt to copy the example config.
+        設定ファイルの場所を特定または初期化します。
+        設定ファイルが見つからない場合、`.ini` サフィックスのファイルをチェックします。
+        両方とも見つからない場合は、例示設定ファイルをコピーします。
 
-        :raises: musicbot.exceptions.HelpfulError
-            if config fails to be located or has not been configured.
+        :raises: HelpfulError
+            設定ファイルの場所が特定できない、または設定されていない場合。
         """
-        config = configparser.ConfigParser(interpolation=None)
-
-        # Check for options.ini and copy example ini if missing.
+        # 設定ファイルが存在しない場合の処理
         if not self.config_file.is_file():
             ini_file = self.config_file.with_suffix(".ini")
             if ini_file.is_file():
                 try:
-                    # Explicit compat with python 3.8
+                    # Python 3.8 以降での shutil.move の互換性
                     if sys.version_info >= (3, 9):
                         shutil.move(ini_file, self.config_file)
                     else:
-                        # shutil.move in 3.8 expects str and not path-like.
+                        # Python 3.8 では shutil.move に str を渡す必要があります
                         shutil.move(str(ini_file), str(self.config_file))
-                    log.info(
+                    logging.info(
                         "Moving %s to %s, you should probably turn file extensions on.",
                         ini_file,
                         self.config_file,
@@ -984,7 +981,7 @@ class Config:
                     FileExistsError,
                     PermissionError,
                 ) as e:
-                    log.exception(
+                    logging.exception(
                         "Something went wrong while trying to move .ini to config file path."
                     )
                     raise HelpfulError(
@@ -994,7 +991,7 @@ class Config:
 
             elif os.path.isfile(EXAMPLE_OPTIONS_FILE):
                 shutil.copy(EXAMPLE_OPTIONS_FILE, self.config_file)
-                log.warning(
+                logging.warning(
                     "Options file not found, copying example file:  %s",
                     EXAMPLE_OPTIONS_FILE,
                 )
@@ -1006,26 +1003,32 @@ class Config:
                     "from the repo. Stop removing important files!",
                 )
 
-        # load the config and check if settings are configured.
-        if not config.read(self.config_file, encoding="utf-8"):
-            c = configparser.ConfigParser()
-            owner_id = ""
-            try:
-                c.read(self.config_file, encoding="utf-8")
-                owner_id = c.get("Permissions", "OwnerID", fallback="").strip().lower()
+        # 設定ファイルを読み込む（環境変数も考慮されます）
+        if not self.config.read(self.config_file, encoding="utf-8"):
+            logging.critical(
+                "Failed to read the config file '%s'. Please ensure it is correctly formatted.",
+                self.config_file,
+            )
+            raise HelpfulError(
+                f"Failed to read the config file: {self.config_file}",
+                "Please check the file format and try again.",
+            )
 
-                if not owner_id.isdigit() and owner_id != "auto":
-                    log.critical(
-                        "Please configure settings in '%s' and re-run the bot.",
-                        DEFAULT_OPTIONS_FILE,
-                    )
-                    raise RuntimeError("MusicBot cannot proceed with this config.")
-
-            except ValueError as e:  # Config id value was changed but its not valid
-                raise HelpfulError(
-                    "Invalid config value for OwnerID",
-                    "The OwnerID option requires a user ID number or 'auto'.",
-                ) from e
+        # OwnerID の取得と検証
+        try:
+            owner_id = self.config.getownerid("Permissions", "OwnerID", fallback=0)
+            if owner_id != 0 and not isinstance(owner_id, int):
+                logging.critical(
+                    "Please configure a valid OwnerID in '%s' or set the environment variable PERMISSIONS_OWNERID.",
+                    self.config_file,
+                )
+                raise RuntimeError("MusicBot cannot proceed with an invalid OwnerID.")
+        except HelpfulError as e:
+            raise HelpfulError(
+                "Invalid configuration for OwnerID.",
+                "The OwnerID must be a numerical ID or set to 'auto'.",
+                preface=self.config.error_preface,
+            ) from e
 
     def update_option(self, option: "ConfigOption", value: str) -> bool:
         """
