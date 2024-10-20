@@ -1703,8 +1703,8 @@ class ExtendedConfigParser(configparser.ConfigParser):
         raw: bool = False,
         vars: ConfVars = None,
     ) -> DebugLevel:
-        """Get a config value and parse it as a logger level."""
-        val = self.get(section, key, fallback="", raw=raw, vars=vars).strip().upper()
+        """デバッグレベルを取得します。環境変数が設定されている場合はそちらを使用します。"""
+        val = self.get(section, key, fallback=fallback, raw=raw, vars=vars).strip().upper()
         if not val and fallback:
             val = fallback.upper()
 
