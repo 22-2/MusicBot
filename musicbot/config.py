@@ -953,10 +953,8 @@ class Config:
         """
         設定ファイルの場所を特定または初期化します。
         設定ファイルが見つからない場合、`.ini` サフィックスのファイルをチェックします。
-        両方とも見つからない場合は、例示設定ファイルをコピーします。
-
-        :raises: HelpfulError
-            設定ファイルの場所が特定できない、または設定されていない場合。
+        それでも見つからない場合は、例示設定ファイルをコピーします。
+        設定ファイルが存在しなくてもエラーを発生させません。
         """
         # 設定ファイルが存在しない場合の処理
         if not self.config_file.is_file():
@@ -970,7 +968,7 @@ class Config:
                         # Python 3.8 では shutil.move に str を渡す必要があります
                         shutil.move(str(ini_file), str(self.config_file))
                     logging.info(
-                        "Moving %s to %s, you should probably turn file extensions on.",
+                        "Moved %s to %s. You should probably enable file extensions.",
                         ini_file,
                         self.config_file,
                     )
@@ -982,54 +980,68 @@ class Config:
                     PermissionError,
                 ) as e:
                     logging.exception(
-                        "Something went wrong while trying to move .ini to config file path."
+                        "An error occurred while trying to move the .ini file to the config file path."
                     )
-                    raise HelpfulError(
-                        f"Config file move failed due to error:  {str(e)}",
-                        "Verify your config folder and files exist, and can be read by the bot.",
-                    ) from e
-
+                    logging.warning(
+                        "Proceeding without moving the .ini file. Configuration may rely solely on environment variables."
+                    )
             elif os.path.isfile(EXAMPLE_OPTIONS_FILE):
-                shutil.copy(EXAMPLE_OPTIONS_FILE, self.config_file)
+                try:
+                    shutil.copy(EXAMPLE_OPTIONS_FILE, self.config_file)
+                    logging.warning(
+                        "Options file not found. Copied example file: %s",
+                        EXAMPLE_OPTIONS_FILE,
+                    )
+                except (OSError, PermissionError) as e:
+                    logging.exception(
+                        "An error occurred while trying to copy the example options file."
+                    )
+                    logging.warning(
+                        "Proceeding without copying the example options file. Configuration may rely solely on environment variables."
+                    )
+            else:
                 logging.warning(
-                    "Options file not found, copying example file:  %s",
+                    "Neither %s nor %s were found. Proceeding without a config file. Ensure environment variables are set appropriately.",
+                    self.config_file,
                     EXAMPLE_OPTIONS_FILE,
                 )
 
-            else:
-                raise HelpfulError(
-                    "Your config files are missing. Neither options.ini nor example_options.ini were found.",
-                    "Grab the files back from the archive or remake them yourself and copy paste the content "
-                    "from the repo. Stop removing important files!",
-                )
-
-        # 設定ファイルを読み込む（環境変数も考慮されます）
-        if not self.config.read(self.config_file, encoding="utf-8"):
-            logging.critical(
-                "Failed to read the config file '%s'. Please ensure it is correctly formatted.",
+        # 設定ファイルを読み込む（存在しなくてもエラーを出さない）
+        read_files = self.config.read(self.config_file, encoding="utf-8")
+        if not read_files:
+            logging.info(
+                "No config file loaded from %s. Proceeding with environment variables or defaults.",
                 self.config_file,
             )
-            raise HelpfulError(
-                f"Failed to read the config file: {self.config_file}",
-                "Please check the file format and try again.",
-            )
 
-        # OwnerID の取得と検証
+        # 必要な設定の検証（例として OwnerID を検証）
         try:
             owner_id = self.config.getownerid("Permissions", "OwnerID", fallback=0)
             if owner_id != 0 and not isinstance(owner_id, int):
                 logging.critical(
-                    "Please configure a valid OwnerID in '%s' or set the environment variable PERMISSIONS_OWNERID.",
+                    "Invalid OwnerID configuration in '%s' or environment variable PERMISSIONS_OWNERID.",
                     self.config_file,
                 )
                 raise RuntimeError("MusicBot cannot proceed with an invalid OwnerID.")
+            logging.info(f"Owner ID set to: {owner_id}")
         except HelpfulError as e:
-            raise HelpfulError(
-                "Invalid configuration for OwnerID.",
-                "The OwnerID must be a numerical ID or set to 'auto'.",
-                preface=self.config.error_preface,
-            ) from e
+            logging.error(
+                "Invalid configuration for OwnerID: %s. Ensure it is a numerical ID or set to 'auto'.",
+                e.message,
+            )
+            logging.error("Solution: %s", e.solution)
+            # 必要に応じてデフォルト値を設定するか、処理を続行
+            owner_id = 0  # 例としてデフォルト値を設定
+            logging.info(f"Owner ID set to default fallback value: {owner_id}")
 
+        # 他の必要な設定も同様に検証・取得します
+        # 例:
+        # try:
+        #     some_setting = self.config.get("Section", "SomeOption", fallback="default_value")
+        # except HelpfulError as e:
+        #     logging.error("Error message")
+        #     some_setting = "default_value"
+        
     def update_option(self, option: "ConfigOption", value: str) -> bool:
         """
         Uses option data to parse the given value and update its associated config.
