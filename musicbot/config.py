@@ -1701,12 +1701,32 @@ class ExtendedConfigParser(configparser.ConfigParser):
         fallback: Any = None,
     ) -> str:
         """Override get method to read from environment variables."""
-        env_var = f"{section}_{option}".upper()
-        if env_var in os.environ:
-            return os.environ[env_var]
-        else:
-            return super().get(section, option, raw=raw, vars=vars, fallback=fallback)
-
+        try:
+            # 環境変数からの読み込みを試みる
+            env_var = f"{section}_{option}".upper()
+            if env_var in os.environ:
+                value = os.environ[env_var]
+                if value is not None:
+                    return value
+                
+            # 通常のconfigparserからの読み込みを試みる
+            value = super().get(section, option, raw=raw, vars=vars, fallback=fallback)
+            if value is not None:
+                return value
+                
+            # どちらもNoneの場合はfallbackを返す
+            if fallback is not None:
+                return str(fallback)  # 数値型に変換されることを考慮してstr型に変換
+                
+            # fallbackもNoneの場合は空文字列を返す
+            return ""
+            
+        except Exception as e:
+            # エラーが発生した場合はfallbackか空文字列を返す
+            if fallback is not None:
+                return str(fallback)
+            return ""
+        
     def getownerid(
         self,
         section: str,
