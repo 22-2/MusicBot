@@ -1705,8 +1705,7 @@ class ExtendedConfigParser(configparser.ConfigParser):
     ) -> DebugLevel:
         """デバッグレベルを取得します。環境変数が設定されている場合はそちらを使用します。"""
         val = self.get(section, key, fallback=fallback, raw=raw, vars=vars)
-        logging.log("val", val)
-        logging.log(val)
+        print(val)
         if not val and fallback:
             val = fallback.upper()
 
