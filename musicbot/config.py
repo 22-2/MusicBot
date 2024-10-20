@@ -1672,15 +1672,31 @@ class ExtendedConfigParser(configparser.ConfigParser):
             keys += list(s.keys())
         return keys
 
+    def get(
+        self,
+        section: str,
+        option: str,
+        *,
+        raw: bool = False,
+        vars: ConfVars = None,
+        fallback: Any = _UNSET,
+    ) -> str:
+        """Override get method to read from environment variables."""
+        env_var = f"{section}_{option}".upper()
+        if env_var in os.environ:
+            return os.environ[env_var]
+        else:
+            return super().get(section, option, raw=raw, vars=vars, fallback=fallback)
+
     def getownerid(
         self,
         section: str,
         key: str,
         fallback: int = 0,
         raw: bool = False,
-        vars: ConfVars = None,  # pylint: disable=redefined-builtin
+        vars: ConfVars = None,
     ) -> int:
-        """get the owner ID or 0 for auto"""
+        """Get the owner ID or 0 for auto."""
         val = self.get(section, key, fallback="", raw=raw, vars=vars).strip()
         if not val:
             return fallback
@@ -1702,11 +1718,11 @@ class ExtendedConfigParser(configparser.ConfigParser):
         key: str,
         fallback: pathlib.Path,
         raw: bool = False,
-        vars: ConfVars = None,  # pylint: disable=redefined-builtin
+        vars: ConfVars = None,
     ) -> pathlib.Path:
         """
-        get a config value and parse it as a Path object.
-        the `fallback` argument is required.
+        Get a config value and parse it as a Path object.
+        The `fallback` argument is required.
         """
         val = self.get(section, key, fallback="", raw=raw, vars=vars).strip()
         if not val and fallback:
@@ -1731,9 +1747,9 @@ class ExtendedConfigParser(configparser.ConfigParser):
         key: str,
         fallback: Optional[Set[int]] = None,
         raw: bool = False,
-        vars: ConfVars = None,  # pylint: disable=redefined-builtin
+        vars: ConfVars = None,
     ) -> Set[int]:
-        """get a config value and parse it as a set of ID values."""
+        """Get a config value and parse it as a set of ID values."""
         val = self.get(section, key, fallback="", raw=raw, vars=vars).strip()
         if not val and fallback:
             return set(fallback)
@@ -1754,9 +1770,9 @@ class ExtendedConfigParser(configparser.ConfigParser):
         key: str,
         fallback: str = "",
         raw: bool = False,
-        vars: ConfVars = None,  # pylint: disable=redefined-builtin
+        vars: ConfVars = None,
     ) -> DebugLevel:
-        """get a config value an parse it as a logger level."""
+        """Get a config value and parse it as a logger level."""
         val = self.get(section, key, fallback="", raw=raw, vars=vars).strip().upper()
         if not val and fallback:
             val = fallback.upper()
@@ -1767,9 +1783,9 @@ class ExtendedConfigParser(configparser.ConfigParser):
             int_level = getattr(logging, val)
             return (str_level, int_level)
 
-        int_level = getattr(logging, DEFAULT_LOG_LEVEL, logging.INFO)
+        int_level = getattr(logging, 'INFO', logging.INFO)
         str_level = logging.getLevelName(int_level)
-        log.warning(
+        logging.warning(
             'Invalid DebugLevel option "%s" given, falling back to level: %s',
             val,
             str_level,
@@ -1782,16 +1798,16 @@ class ExtendedConfigParser(configparser.ConfigParser):
         key: str,
         fallback: int = 0,
         raw: bool = False,
-        vars: ConfVars = None,  # pylint: disable=redefined-builtin
+        vars: ConfVars = None,
     ) -> int:
-        """get a config value and parse it as a human readable data size"""
+        """Get a config value and parse it as a human-readable data size."""
         val = self.get(section, key, fallback="", raw=raw, vars=vars).strip()
         if not val and fallback:
             return fallback
         try:
             return format_size_to_bytes(val)
         except ValueError:
-            log.warning(
+            logging.warning(
                 "Option [%s] > %s has invalid config value '%s' using default instead.",
                 section,
                 key,
@@ -1805,7 +1821,7 @@ class ExtendedConfigParser(configparser.ConfigParser):
         key: str,
         fallback: float = 0.0,
         raw: bool = False,
-        vars: ConfVars = None,  # pylint: disable=redefined-builtin
+        vars: ConfVars = None,
     ) -> float:
         """
         Get a config value and parse it as a percentage.
@@ -1819,7 +1835,7 @@ class ExtendedConfigParser(configparser.ConfigParser):
             return fallback
 
         v = 0.0
-        # account for literal percentage character: %
+        # Account for literal percentage character: %
         if val.startswith("%") or val.endswith("%"):
             try:
                 ival = val.replace("%", "").strip()
@@ -1829,11 +1845,11 @@ class ExtendedConfigParser(configparser.ConfigParser):
                     return fallback
                 raise
 
-        # account for explicit float and implied percentage.
+        # Account for explicit float and implied percentage.
         else:
             try:
                 v = abs(float(val))
-                # if greater than 1, assume implied percentage.
+                # If greater than 1, assume implied percentage.
                 if v > 1:
                     v = v / 100
             except (ValueError, TypeError):
@@ -1842,8 +1858,8 @@ class ExtendedConfigParser(configparser.ConfigParser):
                 raise
 
         if v > 1:
-            log.warning(
-                "Option [%s] > %s has a value greater than 100 %% (%s) and will be set to %s instead.",
+            logging.warning(
+                "Option [%s] > %s has a value greater than 100%% (%s) and will be set to %s instead.",
                 section,
                 key,
                 val,
@@ -1859,9 +1875,9 @@ class ExtendedConfigParser(configparser.ConfigParser):
         key: str,
         fallback: Union[int, float] = 0,
         raw: bool = False,
-        vars: ConfVars = None,  # pylint: disable=redefined-builtin
+        vars: ConfVars = None,
     ) -> float:
-        """get a config value parsed as a time duration."""
+        """Get a config value parsed as a time duration."""
         val = self.get(section, key, fallback="", raw=raw, vars=vars).strip()
         if not val and fallback:
             return float(fallback)
@@ -1874,14 +1890,13 @@ class ExtendedConfigParser(configparser.ConfigParser):
         key: str,
         fallback: Set[str],
         raw: bool = False,
-        vars: ConfVars = None,  # pylint: disable=redefined-builtin
+        vars: ConfVars = None,
     ) -> Set[str]:
-        """get a config value parsed as a set of string values."""
+        """Get a config value parsed as a set of string values."""
         val = self.get(section, key, fallback="", raw=raw, vars=vars).strip()
         if not val and fallback:
             return set(fallback)
         return set(x for x in val.replace(",", " ").split())
-
 
 class Blocklist:
     """
