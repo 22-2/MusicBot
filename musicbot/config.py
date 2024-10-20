@@ -1706,27 +1706,25 @@ class ExtendedConfigParser(configparser.ConfigParser):
             env_var = f"{section}_{option}".upper()
             if env_var in os.environ:
                 value = os.environ[env_var]
-                if value is not None:
+                if value is not None and value != "":
                     return value
                 
             # 通常のconfigparserからの読み込みを試みる
-            value = super().get(section, option, raw=raw, vars=vars, fallback=fallback)
-            if value is not None:
+            value = super().get(section, option, raw=raw, vars=vars, fallback=None)
+            if value is not None and value != "":
                 return value
                 
-            # どちらもNoneの場合はfallbackを返す
+            # どちらも有効な値が取得できない場合はfallbackを返す
             if fallback is not None:
-                return str(fallback)  # 数値型に変換されることを考慮してstr型に変換
+                return str(fallback) if fallback != "" else "0"  # 数値型のために0をデフォルト値とする
                 
-            # fallbackもNoneの場合は空文字列を返す
-            return ""
+            # fallbackもない場合は0を返す（数値型用のデフォルト値）
+            return "0"
             
         except Exception as e:
-            # エラーが発生した場合はfallbackか空文字列を返す
-            if fallback is not None:
-                return str(fallback)
-            return ""
-        
+            # エラーが発生した場合は0を返す
+            return "0"
+
     def getownerid(
         self,
         section: str,
