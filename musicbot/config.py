@@ -11,7 +11,6 @@ from typing import (
     Dict,
     Iterable,
     List,
-    Mapping,
     Optional,
     Set,
     Tuple,
@@ -121,7 +120,7 @@ class Config:
             option="DebugLevel",
             dest="_debug_level",
             # default=ConfigDefaults._debug_level(),
-            default=["DEBUG", logging.DEBUG],
+            default=("DEBUG", logging.DEBUG),
             getter="getdebuglevel",
             comment=(
                 "Set the log verbosity of MusicBot. Normally this should be set to INFO.\n"
@@ -1044,7 +1043,7 @@ class Config:
         # except HelpfulError as e:
         #     logging.error("Error message")
         #     some_setting = "default_value"
-        
+ 
     def update_option(self, option: "ConfigOption", value: str) -> bool:
         """
         Uses option data to parse the given value and update its associated config.
@@ -1659,10 +1658,6 @@ class ConfigOptionRegistry:
 
         return str(conf_value)
 
-# 必要な型エイリアスを定義
-ConfVars = Optional[Mapping[str, Any]]
-DebugLevel = Tuple[str, int]
-_UNSET = object()
 
 class ExtendedConfigParser(configparser.ConfigParser):
     """
@@ -1696,34 +1691,21 @@ class ExtendedConfigParser(configparser.ConfigParser):
             keys += list(s.keys())
         return keys
 
-    def getdebuglevel(
+    def get(
         self,
         section: str,
-        key: str,
-        fallback: str = "",
+        option: str,
+        *,
         raw: bool = False,
         vars: ConfVars = None,
-    ) -> DebugLevel:
-        """デバッグレベルを取得します。環境変数が設定されている場合はそちらを使用します。"""
-        val = self.get(section, key, fallback=fallback, raw=raw, vars=vars)
-        print(val)
-        if not val and fallback:
-            val = fallback.upper()
-
-        int_level = 0
-        str_level = val
-        if hasattr(logging, val):
-            int_level = getattr(logging, val)
-            return (str_level, int_level)
-
-        int_level = getattr(logging, 'INFO', logging.INFO)
-        str_level = logging.getLevelName(int_level)
-        logging.warning(
-            'Invalid DebugLevel option "%s" given, falling back to level: %s',
-            val,
-            str_level,
-        )
-        return (str_level, int_level)
+        fallback: Any = None,
+    ) -> str:
+        """Override get method to read from environment variables."""
+        env_var = f"{section}_{option}".upper()
+        if env_var in os.environ:
+            return os.environ[env_var]
+        else:
+            return super().get(section, option, raw=raw, vars=vars, fallback=fallback)
 
     def getownerid(
         self,
@@ -1801,27 +1783,33 @@ class ExtendedConfigParser(configparser.ConfigParser):
                 preface=self.error_preface,
             ) from e
 
-    def get(
+    def getdebuglevel(
         self,
         section: str,
-        option: str,
-        *,
+        key: str,
+        fallback: str = "",
         raw: bool = False,
         vars: ConfVars = None,
-        fallback: Any = _UNSET,
-    ) -> str:
-        """Override get method to read from environment variables."""
-        env_var = f"{section}_{option}".upper()
-        if env_var in os.environ:
-            logging.debug(f"Using environment variable for {section}.{option}: {os.environ[env_var]}")
-            return os.environ[env_var]
-        else:
-            if fallback is _UNSET:
-                logging.debug(f"No environment variable found for {section}.{option}, and no fallback provided.")
-                return super().get(section, option, raw=raw, vars=vars)
-            else:
-                logging.debug(f"No environment variable found for {section}.{option}, using fallback: {fallback}")
-                return super().get(section, option, raw=raw, vars=vars, fallback=fallback)
+    ) -> DebugLevel:
+        """Get a config value and parse it as a logger level."""
+        val = self.get(section, key, fallback="", raw=raw, vars=vars).strip().upper()
+        if not val and fallback:
+            val = fallback.upper()
+
+        int_level = 0
+        str_level = val
+        if hasattr(logging, val):
+            int_level = getattr(logging, val)
+            return (str_level, int_level)
+
+        int_level = getattr(logging, 'INFO', logging.INFO)
+        str_level = logging.getLevelName(int_level)
+        logging.warning(
+            'Invalid DebugLevel option "%s" given, falling back to level: %s',
+            val,
+            str_level,
+        )
+        return (str_level, int_level)
 
     def getdatasize(
         self,
