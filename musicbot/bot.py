@@ -1047,7 +1047,8 @@ class MusicBot(discord.Client):
             newmsg = self.str.get(
                 "on_player_play-onChannel_noAuthor_autoplaylist",
                 "Now playing automatically added entry {title} in {channel}!",
-            ).format(title=entry.title, channel=player.voice_client.channel.name)
+                "Url: {url}"
+            ).format(title=entry.title, channel=player.voice_client.channel.name, url=entry.url)
 
         # handle history playlist updates.
         guild = player.voice_client.guild
