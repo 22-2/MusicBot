@@ -1704,7 +1704,9 @@ class ExtendedConfigParser(configparser.ConfigParser):
         vars: ConfVars = None,
     ) -> DebugLevel:
         """デバッグレベルを取得します。環境変数が設定されている場合はそちらを使用します。"""
-        val = self.get(section, key, fallback=fallback, raw=raw, vars=vars).strip().upper()
+        val = self.get(section, key, fallback=fallback, raw=raw, vars=vars)
+        logging.log("val", val)
+        logging.log(val)
         if not val and fallback:
             val = fallback.upper()
 
@@ -1811,9 +1813,15 @@ class ExtendedConfigParser(configparser.ConfigParser):
         """Override get method to read from environment variables."""
         env_var = f"{section}_{option}".upper()
         if env_var in os.environ:
+            logging.debug(f"Using environment variable for {section}.{option}: {os.environ[env_var]}")
             return os.environ[env_var]
         else:
-            return super().get(section, option, raw=raw, vars=vars, fallback=fallback)
+            if fallback is _UNSET:
+                logging.debug(f"No environment variable found for {section}.{option}, and no fallback provided.")
+                return super().get(section, option, raw=raw, vars=vars)
+            else:
+                logging.debug(f"No environment variable found for {section}.{option}, using fallback: {fallback}")
+                return super().get(section, option, raw=raw, vars=vars, fallback=fallback)
 
     def getdatasize(
         self,
